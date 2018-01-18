@@ -2,6 +2,47 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 
+static unsigned int compileShader(unsigned int type, const std::string& source) {
+	unsigned int id = glCreateShader(type);
+	const char* src = source.c_str();
+	glShaderSource(id, 1, &src, nullptr);
+	glCompileShader(id);
+
+	// TODO: Error handling
+	int result;
+	glGetShaderiv(id, GL_COMPILE_STATUS, &result);	// iv: i = integer, v = vector
+	if (!result) {
+		int length;
+		glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
+		char* message = (char*)alloca(length * sizeof(char));
+		glGetShaderInfoLog(id, length, &length, message);
+		std::cout << "Failed to compile " <<
+			(type == GL_VERTEX_SHADER ? "vertex" : "fragment") << " shader!" << std::endl;
+		std::cout << message << std::endl;
+		glDeleteShader(id);
+		return 0;
+	}
+
+	return id;
+}
+
+static int createShader(const std::string& vertexShader, const std::string& fragmentShader) {
+	unsigned int program = glCreateProgram();
+	unsigned int vs = compileShader(GL_VERTEX_SHADER, vertexShader);
+	unsigned int fs = compileShader(GL_FRAGMENT_SHADER, fragmentShader);
+
+	glAttachShader(program, vs);
+	glAttachShader(program, fs);
+	glLinkProgram(program);
+	glValidateProgram(program);
+
+	glDeleteShader(vs);	// after the shaders are linked, we can delete the intermediates.
+	glDeleteShader(fs);
+
+	return program;
+}
+
+
 int main(void)
 {
 	GLFWwindow* window;
@@ -25,7 +66,7 @@ int main(void)
 		std::cout << "Error!" << std::endl;
 	};
 
-	std::cout << "GL_VERSION: " << glGetString(GL_VERSION);
+	std::cout << "GL_VERSION: " << glGetString(GL_VERSION) << std::endl;
 	float positions[6] = {
 		-0.5f, -0.5f,
 		 0.0f,  0.5f,
@@ -59,6 +100,34 @@ int main(void)
 	// : pass 4*2 = 8 as offset (in byte) to the texture coordinate - converts to a pointer with (const void*)
 	// IMPORTANT: we need to enable attribute feature with - glEnableVertexAttribArray
 
+	// gl_Position is actually a "vec4" (definition I guess), 
+	//		and it's value should be as the same as in "index" argument of: glVertexAttribPointer
+	//		so when we specify layout(location = 0), it should also be vec4, 
+	//		or we need to cast it to vec4 while we assign it to gl_Position with vec4(position.xy)
+	// https://www.youtube.com/watch?v=71BLZwRGUJE&index=7&list=PLlrATfBNZ98foTJPJ_Ev03o2oq3-GGOS2
+	// don't need to use + to concatenate string, since it's in c++ style
+	std::string vertexShader =
+		"#version 330 core\n"
+		"\n"
+		"layout(location = 0) in vec4 position;\n"
+		"void main()\n"
+		"{\n"
+		"	gl_Position = position;\n"
+		"}\n";
+
+	// assign "color" with RGBA value => Red, the layout actually depends on your framebuffer format
+	// the color out means we want to give GPU the color (I guess)
+	std::string fragmentShader =
+		"#version 330 core\n"
+		"\n"
+		"layout(location = 0) out vec4 color;\n"
+		"void main()\n"
+		"{\n"
+		"	color = vec4(1.0, 0.0, 0.0, 1.0);\n"
+		"}\n";
+	unsigned int shader = createShader(vertexShader, fragmentShader);
+	glUseProgram(shader);
+
 	/*
 	* Loop until the user closes the window:
 	* : This is like onDraw, so it will draw on each frame when updating,
@@ -82,6 +151,8 @@ int main(void)
 		/* Poll for and process events */
 		glfwPollEvents();
 	}
+
+	glDeleteShader(shader);	// delete shader after the app ends
 
 	glfwTerminate();
 	return 0;
