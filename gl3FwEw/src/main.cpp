@@ -95,6 +95,11 @@ int main(void)
 	if (!glfwInit())
 		return -1;
 
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	//glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
 	/* Create a windowed mode window and its OpenGL context */
 	window = glfwCreateWindow(640, 480, "Hello World", NULL, NULL);
 	if (!window)
@@ -135,6 +140,13 @@ int main(void)
 		2, 3, 0
 	}; // it has to be unsigned int than signed
 
+
+	   // below code: used to fix the OpenGL Core profile with a actual Vertex Array Object
+	unsigned int vao;
+	glGenVertexArrays(1, &vao);
+	glBindVertexArray(vao);
+	// above code ends
+
 	unsigned int buffer;
 	glGenBuffers(1, &buffer);				// Generate/Create a GL Buffer, we should provide an Integer as a memory which we can write into 
 	glBindBuffer(GL_ARRAY_BUFFER, buffer);	// How do I want to use the GL Buffer? Define it to a specific buffer:
@@ -147,13 +159,17 @@ int main(void)
 	// : STATIC, DYNAMIC: we should let GPU knows that if the buffer can be modified more than ONCE.
 	// : DRAW: we want to draw things with the buffer, so use it
 
-	glEnableVertexAttribArray(0);	// index: it's the index we want to enable attribute.
+
+	// below code for vertex array object concept: keep still at the first time, later can remove
+	glEnableVertexAttribArray(0);			// index: it's the index we want to enable attribute.
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
-	// we need to tell opengl how we layout the data with - glVertexAttribPointer
+	// above code ends
+	// We need to tell opengl how we layout the data with - glVertexAttribPointer
 	// example: glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, (const void*) 8);
 	// : normal: GL_FALSE - if we want them to be normalized
 	// : pass 4*2 = 8 as offset (in byte) to the texture coordinate - converts to a pointer with (const void*)
 	// IMPORTANT: we need to enable attribute feature with - glEnableVertexAttribArray
+
 
 	// vertex shader:
 	// gl_Position is actually a "vec4" (definition I guess), 
@@ -186,7 +202,7 @@ int main(void)
 	unsigned int ibo;
 	glGenBuffers(1, &ibo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * 2 * sizeof(float), indices, GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 4 * 2 * sizeof(float), indices, GL_STATIC_DRAW);
 
 	ShaderProgramSources source = parseShader("res/shaders/basic.shader");
 	std::cout << "VERTEX: " << std::endl;
@@ -202,6 +218,13 @@ int main(void)
 	// we want to pass vec4 and in float type so the name should contain "4" and "f"
 	// put the code below glUseProgram()
 	// NOTE: location == -1 then it means the glGetUniformLocation can't find the uniform
+
+	// below code: unset the buffers
+	glBindVertexArray(0);
+	glUseProgram(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	// above code ends
 
 
 	float r = 0.0f;
@@ -223,8 +246,20 @@ int main(void)
 		// : first - 0 means the index of the array we want to start
 		// : count - the number of axis (x, y) of the array we want to draw
 		// NOTE: similar API - glDrawElements(GL_TRIANGLES, 3, UNSIGNED_INT, ...) used with index buffer
-
+		glUseProgram(shader);
 		glUniform4f(location, r, 0.3f, 0.8f, 1.0f);
+		glBindVertexArray(vao);
+
+		// can remove the below "vertex buffer" code and still work: don't need to bind the vertex buffer at all
+		/*
+		glBindBuffer(GL_ARRAY_BUFFER, buffer);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
+		*/
+		// above code ends
+
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 		// above code:
 		// : count - the number of indices we are drawing not vertexes
