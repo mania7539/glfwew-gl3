@@ -1,3 +1,5 @@
+#include <iostream>
+#include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
 int main(void)
@@ -18,6 +20,23 @@ int main(void)
 
 	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
+
+	unsigned int a;
+	glGenBuffers(1, &a);
+
+	// TODO: GLEW code
+	// Documentation: We need to create a valid OpenGL rendering context
+	// where do we do this? glfwMakeContextCurrent(window);
+	if (glewInit() != GLEW_OK) {
+		std::cout << "Failed to initialize GLEW" << std::endl;
+		return -1;
+	}
+
+	std::cout << "GLVERSION: " << glGetString(GL_VERSION) << std::endl;
+	// output: GLVERSION: 2.1 INTEL-10.30.12
+	//                    ^GL ^Driver provider software version (on My Mac)
+	// output: GLVERSION: 4.2.0 Build 10.18.10.3643
+	//                    ^GL   ^Driver provider software version(on My Windows8.1)
 
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window))
