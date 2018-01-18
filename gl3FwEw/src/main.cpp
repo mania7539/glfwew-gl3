@@ -1,6 +1,50 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include <fstream>
+#include <string>
+#include <sstream>
+
+struct ShaderProgramSources {
+	std::string vertexSource;
+	std::string fragmentSource;
+};
+
+static ShaderProgramSources parseShader(const std::string& filepath) {
+
+	enum class ShaderType {
+		NONE = -1, VERTEX = 0, FRAGMENT = 1
+	};
+	std::cout << filepath << std::endl;
+	std::ifstream stream(filepath);
+	std::string line;
+	std::stringstream ss[2];
+	ShaderType type = ShaderType::NONE;
+
+	while (getline(stream, line)) {
+		// npos is basically an invalid string position
+		if (line.find("#shader") != std::string::npos) {
+			if (line.find("vertex") != std::string::npos) {
+				// set mode to vertex
+				type = ShaderType::VERTEX;
+
+			}
+			else if (line.find("fragment") != std::string::npos) {
+				// set mode to fragment
+				type = ShaderType::FRAGMENT;
+			}
+
+		}
+		else {
+			ss[(int)type] << line << '\n';
+		}
+	}
+
+	return {
+		ss[0].str(), ss[1].str()
+	};
+}
+
 
 static unsigned int compileShader(unsigned int type, const std::string& source) {
 	unsigned int id = glCreateShader(type);
@@ -100,32 +144,40 @@ int main(void)
 	// : pass 4*2 = 8 as offset (in byte) to the texture coordinate - converts to a pointer with (const void*)
 	// IMPORTANT: we need to enable attribute feature with - glEnableVertexAttribArray
 
+	// vertex shader:
 	// gl_Position is actually a "vec4" (definition I guess), 
 	//		and it's value should be as the same as in "index" argument of: glVertexAttribPointer
 	//		so when we specify layout(location = 0), it should also be vec4, 
 	//		or we need to cast it to vec4 while we assign it to gl_Position with vec4(position.xy)
 	// https://www.youtube.com/watch?v=71BLZwRGUJE&index=7&list=PLlrATfBNZ98foTJPJ_Ev03o2oq3-GGOS2
 	// don't need to use + to concatenate string, since it's in c++ style
-	std::string vertexShader =
-		"#version 330 core\n"
-		"\n"
-		"layout(location = 0) in vec4 position;\n"
-		"void main()\n"
-		"{\n"
-		"	gl_Position = position;\n"
-		"}\n";
+	/*std::string vertexShader =
+	"\\\\comment"
+	"#version 330 core\n"
+	"\n"
+	"layout(location = 0) in vec4 position;\n"
+	"void main()\n"
+	"{\n"
+	"	gl_Position = position;\n"
+	"}\n";*/
 
-	// assign "color" with RGBA value => Red, the layout actually depends on your framebuffer format
-	// the color out means we want to give GPU the color (I guess)
-	std::string fragmentShader =
-		"#version 330 core\n"
-		"\n"
-		"layout(location = 0) out vec4 color;\n"
-		"void main()\n"
-		"{\n"
-		"	color = vec4(1.0, 0.0, 0.0, 1.0);\n"
-		"}\n";
-	unsigned int shader = createShader(vertexShader, fragmentShader);
+	// fragment shader: assign "color" with RGBA value => Red, the layout of RGBA sequence actually depends on your framebuffer format
+	/*std::string fragmentShader =
+	"#version 330 core\n"
+	"\n"
+	"layout(location = 0) out vec4 color;\n"
+	"void main()\n"
+	"{\n"
+	"	color = vec4(1.0, 0.0, 0.0, 1.0);\n"
+	"}\n";*/
+	//unsigned int shader = createShader(vertexShader, fragmentShader);
+	//glUseProgram(shader);
+	ShaderProgramSources source = parseShader("res/shaders/basic.shader");
+	std::cout << "VERTEX: " << std::endl;
+	std::cout << source.vertexSource << std::endl;
+	std::cout << "FRAGMENT: " << std::endl;
+	std::cout << source.fragmentSource << std::endl;
+	unsigned int shader = createShader(source.vertexSource, source.fragmentSource);
 	glUseProgram(shader);
 
 	/*
@@ -152,7 +204,7 @@ int main(void)
 		glfwPollEvents();
 	}
 
-	glDeleteShader(shader);	// delete shader after the app ends
+	//glDeleteShader(shader);	// delete shader after the app ends
 
 	glfwTerminate();
 	return 0;
