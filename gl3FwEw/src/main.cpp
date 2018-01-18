@@ -106,6 +106,11 @@ int main(void)
 	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
 
+	glfwSwapInterval(1);
+	// above code:
+	// synchronize better with slower rate
+	// : interval - The minimum number of screen updates to wait for until the buffers are swapped by glfwSwapBuffers.
+
 	if (glewInit() != GLEW_OK) {
 		std::cout << "Error!" << std::endl;
 	};
@@ -115,7 +120,7 @@ int main(void)
 		-0.5f, -0.5f,	// 0
 		 0.5f, -0.5f,	// 1
 		 0.5f,  0.5f,	// 2
-		-0.5f,  0.5f	// 3
+		-0.5f,  0.5f,	// 3
 	}; // This is vertex positions of our triangle
 	   // But a "vetex" doesn't only contain position, it can contain more of that
 	   // : a position is an attribute, a color is an attribute, a texture coordinate is an attribute
@@ -128,8 +133,7 @@ int main(void)
 	unsigned int indices[] = {
 		0, 1, 2,
 		2, 3, 0
-	}; // This is vertex indices for index buffer
-
+	}; // it has to be unsigned int than signed
 
 	unsigned int buffer;
 	glGenBuffers(1, &buffer);				// Generate/Create a GL Buffer, we should provide an Integer as a memory which we can write into 
@@ -138,7 +142,7 @@ int main(void)
 											//	buffer - an integer comes from memory
 											// if we use glBindBuffer(GL_ARRAY_BUFFER, 0); then GPU won't draw the triangle out since we bind something else
 
-	glBufferData(GL_ARRAY_BUFFER, 4 * 2 * sizeof(float), positions, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, 6 * 2 * sizeof(float), positions, GL_STATIC_DRAW);
 	// above: Set data which we want to use to the specific GPU buffer
 	// : STATIC, DYNAMIC: we should let GPU knows that if the buffer can be modified more than ONCE.
 	// : DRAW: we want to draw things with the buffer, so use it
@@ -150,14 +154,6 @@ int main(void)
 	// : normal: GL_FALSE - if we want them to be normalized
 	// : pass 4*2 = 8 as offset (in byte) to the texture coordinate - converts to a pointer with (const void*)
 	// IMPORTANT: we need to enable attribute feature with - glEnableVertexAttribArray
-
-
-	// index buffer codes below calling glEnableVertexAttribArray
-	unsigned int ibo;	// it means: index buffer object
-	glGenBuffers(1, &ibo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(float), indices, GL_STATIC_DRAW);
-
 
 	// vertex shader:
 	// gl_Position is actually a "vec4" (definition I guess), 
@@ -186,7 +182,12 @@ int main(void)
 	"	color = vec4(1.0, 0.0, 0.0, 1.0);\n"
 	"}\n";*/
 	//unsigned int shader = createShader(vertexShader, fragmentShader);
-	//glUseProgram(shader);
+
+	unsigned int ibo;
+	glGenBuffers(1, &ibo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * 2 * sizeof(float), indices, GL_STATIC_DRAW);
+
 	ShaderProgramSources source = parseShader("res/shaders/basic.shader");
 	std::cout << "VERTEX: " << std::endl;
 	std::cout << source.vertexSource << std::endl;
@@ -195,6 +196,16 @@ int main(void)
 	unsigned int shader = createShader(source.vertexSource, source.fragmentSource);
 	glUseProgram(shader);
 
+	int location = glGetUniformLocation(shader, "u_Color");
+	glUniform4f(location, 0.8f, 0.3f, 0.8f, 1.0f);
+	// above code:
+	// we want to pass vec4 and in float type so the name should contain "4" and "f"
+	// put the code below glUseProgram()
+	// NOTE: location == -1 then it means the glGetUniformLocation can't find the uniform
+
+
+	float r = 0.0f;
+	float increment = 0.05f;
 	/*
 	* Loop until the user closes the window:
 	* : This is like onDraw, so it will draw on each frame when updating,
@@ -206,17 +217,23 @@ int main(void)
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		// TODO: modern gl codes begin:
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
-		// above code:
-		// : count - the number of indices we are drawing not vertexes
-		// : indices - since glBindBuffer already binded "ibo", we can pass "nullptr" (we don't have to put anything else in it)
-		// IMPORTANT: call glDrawElements(GL_TRIANGLES, 6, GL_INT, nullptr); (with GL_INT than GL_UNSIGNED_INT) will cause exception.
 
-		// glDrawArrays(GL_TRIANGLES, 0, 3);
+		// glDrawArrays(GL_TRIANGLES, 0, 6);
 		// above: glDrawArrays ¡X render primitives from array data
 		// : first - 0 means the index of the array we want to start
 		// : count - the number of axis (x, y) of the array we want to draw
 		// NOTE: similar API - glDrawElements(GL_TRIANGLES, 3, UNSIGNED_INT, ...) used with index buffer
+
+		glUniform4f(location, r, 0.3f, 0.8f, 1.0f);
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+		// above code:
+		// : count - the number of indices we are drawing not vertexes
+		// : indices - since glBindBuffer already binded "ibo", we can pass "nullptr" (we don't have to put anything else in it)
+		// IMPORTANT: call glDrawElements(GL_TRIANGLES, 6, GL_INT, nullptr); (with GL_INT than GL_UNSIGNED_INT) will cause black screen and exception.
+
+		if (r > 1.0f) increment = -0.05f;
+		else if (r < 0.0f) increment = 0.05f;
+		r += increment;
 
 		/* Swap front and back buffers */
 		glfwSwapBuffers(window);
