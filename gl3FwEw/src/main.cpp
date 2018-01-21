@@ -5,6 +5,10 @@
 #include <string>
 #include <sstream>
 
+#include "Renderer.h"
+#include "VertexBuffer.h"
+#include "IndexBuffer.h"
+
 struct ShaderProgramSources {
 	std::string vertexSource;
 	std::string fragmentSource;
@@ -141,144 +145,138 @@ int main(void)
 	}; // it has to be unsigned int than signed
 
 
-	   // below code: used to fix the OpenGL Core profile with a actual Vertex Array Object
+	// below code: used to fix the OpenGL Core profile with a actual Vertex Array Object
 	unsigned int vao;
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
 	// above code ends
 
-	unsigned int buffer;
-	glGenBuffers(1, &buffer);				// Generate/Create a GL Buffer, we should provide an Integer as a memory which we can write into 
-	glBindBuffer(GL_ARRAY_BUFFER, buffer);	// How do I want to use the GL Buffer? Define it to a specific buffer:
-											//	target - GL_ARRAY_BUFFER: it's just an array
-											//	buffer - an integer comes from memory
-											// if we use glBindBuffer(GL_ARRAY_BUFFER, 0); then GPU won't draw the triangle out since we bind something else
-
-	glBufferData(GL_ARRAY_BUFFER, 6 * 2 * sizeof(float), positions, GL_STATIC_DRAW);
-	// above: Set data which we want to use to the specific GPU buffer
-	// : STATIC, DYNAMIC: we should let GPU knows that if the buffer can be modified more than ONCE.
-	// : DRAW: we want to draw things with the buffer, so use it
-
-
-	// below code for vertex array object concept: keep still at the first time, later can remove
-	glEnableVertexAttribArray(0);			// index: it's the index we want to enable attribute.
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
-	// above code ends
-	// We need to tell opengl how we layout the data with - glVertexAttribPointer
-	// example: glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, (const void*) 8);
-	// : normal: GL_FALSE - if we want them to be normalized
-	// : pass 4*2 = 8 as offset (in byte) to the texture coordinate - converts to a pointer with (const void*)
-	// IMPORTANT: we need to enable attribute feature with - glEnableVertexAttribArray
-
-
-	// vertex shader:
-	// gl_Position is actually a "vec4" (definition I guess), 
-	//		and it's value should be as the same as in "index" argument of: glVertexAttribPointer
-	//		so when we specify layout(location = 0), it should also be vec4, 
-	//		or we need to cast it to vec4 while we assign it to gl_Position with vec4(position.xy)
-	// https://www.youtube.com/watch?v=71BLZwRGUJE&index=7&list=PLlrATfBNZ98foTJPJ_Ev03o2oq3-GGOS2
-	// don't need to use + to concatenate string, since it's in c++ style
-	/*std::string vertexShader =
-	"\\\\comment"
-	"#version 330 core\n"
-	"\n"
-	"layout(location = 0) in vec4 position;\n"
-	"void main()\n"
-	"{\n"
-	"	gl_Position = position;\n"
-	"}\n";*/
-
-	// fragment shader: assign "color" with RGBA value => Red, the layout of RGBA sequence actually depends on your framebuffer format
-	/*std::string fragmentShader =
-	"#version 330 core\n"
-	"\n"
-	"layout(location = 0) out vec4 color;\n"
-	"void main()\n"
-	"{\n"
-	"	color = vec4(1.0, 0.0, 0.0, 1.0);\n"
-	"}\n";*/
-	//unsigned int shader = createShader(vertexShader, fragmentShader);
-
-	unsigned int ibo;
-	glGenBuffers(1, &ibo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 4 * 2 * sizeof(float), indices, GL_STATIC_DRAW);
-
-	ShaderProgramSources source = parseShader("res/shaders/basic.shader");
-	std::cout << "VERTEX: " << std::endl;
-	std::cout << source.vertexSource << std::endl;
-	std::cout << "FRAGMENT: " << std::endl;
-	std::cout << source.fragmentSource << std::endl;
-	unsigned int shader = createShader(source.vertexSource, source.fragmentSource);
-	glUseProgram(shader);
-
-	int location = glGetUniformLocation(shader, "u_Color");
-	glUniform4f(location, 0.8f, 0.3f, 0.8f, 1.0f);
-	// above code:
-	// we want to pass vec4 and in float type so the name should contain "4" and "f"
-	// put the code below glUseProgram()
-	// NOTE: location == -1 then it means the glGetUniformLocation can't find the uniform
-
-	// below code: unset the buffers
-	glBindVertexArray(0);
-	glUseProgram(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	// above code ends
-
-
-	float r = 0.0f;
-	float increment = 0.05f;
-	/*
-	* Loop until the user closes the window:
-	* : This is like onDraw, so it will draw on each frame when updating,
-	* : but we don't have to put the buffer code here, but draw command only
-	*/
-	while (!glfwWindowShouldClose(window))
+	// below code starts: add a scope to destory vertex and index buffer before the window is terminated which causes an GL_ERROR
 	{
-		/* Render here */
-		glClear(GL_COLOR_BUFFER_BIT);
+		VertexBuffer vertexBuffer(positions, 4 * 2 * sizeof(float));
 
-		// TODO: modern gl codes begin:
-
-		// glDrawArrays(GL_TRIANGLES, 0, 6);
-		// above: glDrawArrays ¡X render primitives from array data
-		// : first - 0 means the index of the array we want to start
-		// : count - the number of axis (x, y) of the array we want to draw
-		// NOTE: similar API - glDrawElements(GL_TRIANGLES, 3, UNSIGNED_INT, ...) used with index buffer
-		glUseProgram(shader);
-		glUniform4f(location, r, 0.3f, 0.8f, 1.0f);
-		glBindVertexArray(vao);
-
-		// can remove the below "vertex buffer" code and still work: don't need to bind the vertex buffer at all
-		/*
-		glBindBuffer(GL_ARRAY_BUFFER, buffer);
-		glEnableVertexAttribArray(0);
+		// below code for vertex array object concept: keep still at the first time, later can remove
+		glEnableVertexAttribArray(0);			// index: it's the index we want to enable attribute.
 		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
-		*/
+		// above code ends
+		// We need to tell opengl how we layout the data with - glVertexAttribPointer
+		// example: glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, (const void*) 8);
+		// : normal: GL_FALSE - if we want them to be normalized
+		// : pass 4*2 = 8 as offset (in byte) to the texture coordinate - converts to a pointer with (const void*)
+		// IMPORTANT: we need to enable attribute feature with - glEnableVertexAttribArray
+
+
+		// vertex shader:
+		// gl_Position is actually a "vec4" (definition I guess), 
+		//		and it's value should be as the same as in "index" argument of: glVertexAttribPointer
+		//		so when we specify layout(location = 0), it should also be vec4, 
+		//		or we need to cast it to vec4 while we assign it to gl_Position with vec4(position.xy)
+		// https://www.youtube.com/watch?v=71BLZwRGUJE&index=7&list=PLlrATfBNZ98foTJPJ_Ev03o2oq3-GGOS2
+		// don't need to use + to concatenate string, since it's in c++ style
+		/*std::string vertexShader =
+		"\\\\comment"
+		"#version 330 core\n"
+		"\n"
+		"layout(location = 0) in vec4 position;\n"
+		"void main()\n"
+		"{\n"
+		"	gl_Position = position;\n"
+		"}\n";*/
+
+		// fragment shader: assign "color" with RGBA value => Red, the layout of RGBA sequence actually depends on your framebuffer format
+		/*std::string fragmentShader =
+		"#version 330 core\n"
+		"\n"
+		"layout(location = 0) out vec4 color;\n"
+		"void main()\n"
+		"{\n"
+		"	color = vec4(1.0, 0.0, 0.0, 1.0);\n"
+		"}\n";*/
+		//unsigned int shader = createShader(vertexShader, fragmentShader);
+
+		IndexBuffer indexBuffer(indices, 6);
+
+		ShaderProgramSources source = parseShader("res/shaders/basic.shader");
+		std::cout << "VERTEX: " << std::endl;
+		std::cout << source.vertexSource << std::endl;
+		std::cout << "FRAGMENT: " << std::endl;
+		std::cout << source.fragmentSource << std::endl;
+		unsigned int shader = createShader(source.vertexSource, source.fragmentSource);
+		glUseProgram(shader);
+
+		int location = glGetUniformLocation(shader, "u_Color");
+		glUniform4f(location, 0.8f, 0.3f, 0.8f, 1.0f);
+		// above code:
+		// we want to pass vec4 and in float type so the name should contain "4" and "f"
+		// put the code below glUseProgram()
+		// NOTE: location == -1 then it means the glGetUniformLocation can't find the uniform
+
+		// below code: unset the buffers
+		/*glBindVertexArray(0);
+		glUseProgram(0);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);*/
 		// above code ends
 
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
 
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
-		// above code:
-		// : count - the number of indices we are drawing not vertexes
-		// : indices - since glBindBuffer already binded "ibo", we can pass "nullptr" (we don't have to put anything else in it)
-		// IMPORTANT: call glDrawElements(GL_TRIANGLES, 6, GL_INT, nullptr); (with GL_INT than GL_UNSIGNED_INT) will cause black screen and exception.
+		float r = 0.0f;
+		float increment = 0.05f;
+		/*
+		* Loop until the user closes the window:
+		* : This is like onDraw, so it will draw on each frame when updating,
+		* : but we don't have to put the buffer code here, but draw command only
+		*/
+		while (!glfwWindowShouldClose(window))
+		{
+			/* Render here */
+			glClear(GL_COLOR_BUFFER_BIT);
 
-		if (r > 1.0f) increment = -0.05f;
-		else if (r < 0.0f) increment = 0.05f;
-		r += increment;
+			// TODO: modern gl codes begin:
 
-		/* Swap front and back buffers */
-		glfwSwapBuffers(window);
+			// glDrawArrays(GL_TRIANGLES, 0, 6);
+			// above: glDrawArrays ¡X render primitives from array data
+			// : first - 0 means the index of the array we want to start
+			// : count - the number of axis (x, y) of the array we want to draw
+			// NOTE: similar API - glDrawElements(GL_TRIANGLES, 3, UNSIGNED_INT, ...) used with index buffer
+			glUseProgram(shader);
+			glUniform4f(location, r, 0.3f, 0.8f, 1.0f);
+			//glBindVertexArray(vao);
+			vertexBuffer.bind();
 
-		/* Poll for and process events */
-		glfwPollEvents();
+			// can remove the below "vertex buffer" code and still work: don't need to bind the vertex buffer at all
+			/*
+			glBindBuffer(GL_ARRAY_BUFFER, buffer);
+			glEnableVertexAttribArray(0);
+			glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
+			*/
+			// above code ends
+
+			//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+			indexBuffer.bind();
+
+			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+			// above code:
+			// : count - the number of indices we are drawing not vertexes
+			// : indices - since glBindBuffer already binded "ibo", we can pass "nullptr" (we don't have to put anything else in it)
+			// IMPORTANT: call glDrawElements(GL_TRIANGLES, 6, GL_INT, nullptr); (with GL_INT than GL_UNSIGNED_INT) will cause black screen and exception.
+
+			if (r > 1.0f) increment = -0.05f;
+			else if (r < 0.0f) increment = 0.05f;
+			r += increment;
+
+			/* Swap front and back buffers */
+			glfwSwapBuffers(window);
+
+			/* Poll for and process events */
+			glfwPollEvents();
+		}
+
+		glDeleteProgram(shader);	// delete shader after the app ends
 	}
+	// above code ends: add a scope
 
-	//glDeleteShader(shader);	// delete shader after the app ends
-
+	// TODO: delete vertex buffer and index buffer here
 	glfwTerminate();
+
 	return 0;
 }
