@@ -10,11 +10,7 @@
 #include "IndexBuffer.h"
 #include "VertexArray.h"
 #include "VertexBufferLayout.h"
-
-struct ShaderProgramSources {
-	std::string vertexSource;
-	std::string fragmentSource;
-};
+#include "Shader.h"
 
 static ShaderProgramSources parseShader(const std::string& filepath) {
 
@@ -156,16 +152,14 @@ int main(void)
 
 		IndexBuffer indexBuffer(indices, 6);
 
-		ShaderProgramSources source = parseShader("res/shaders/basic.shader");
-		std::cout << "VERTEX: " << std::endl;
-		std::cout << source.vertexSource << std::endl;
-		std::cout << "FRAGMENT: " << std::endl;
-		std::cout << source.fragmentSource << std::endl;
-		unsigned int shader = createShader(source.vertexSource, source.fragmentSource);
-		glUseProgram(shader);
+		Shader shader("res/shaders/basic.shader");
+		shader.bind();
+		shader.setUniform4f("u_Color", 0.8f, 0.3f, 0.8f, 1.0f);
 
-		int location = glGetUniformLocation(shader, "u_Color");
-		glUniform4f(location, 0.8f, 0.3f, 0.8f, 1.0f);
+		vertexArray.unbind();
+		vertexBuffer.unbind();
+		indexBuffer.unbind();
+		shader.unbind();
 
 		float r = 0.0f;
 		float increment = 0.05f;
@@ -176,9 +170,8 @@ int main(void)
 			glClear(GL_COLOR_BUFFER_BIT);
 
 			// TODO: modern gl codes begin:
-
-			glUseProgram(shader);
-			glUniform4f(location, r, 0.3f, 0.8f, 1.0f);
+			shader.bind();
+			shader.setUniform4f("u_Color", r, 0.3f, 0.8f, 1.0f);
 			glBindVertexArray(vao);
 			vertexArray.bind();
 			indexBuffer.bind();
@@ -196,7 +189,7 @@ int main(void)
 			glfwPollEvents();
 		}
 
-		glDeleteProgram(shader);	// delete shader after the app ends
+		
 	}
 	// above code ends: add a scope
 
