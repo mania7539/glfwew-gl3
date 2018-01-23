@@ -23,7 +23,7 @@ VertexBuffer::~VertexBuffer()
 	GLCall(glDeleteBuffers(1, &m_RendererID));
 }
 
-void VertexBuffer::bind()
+void VertexBuffer::bind() const
 {
 	GLCall(glBindBuffer(GL_ARRAY_BUFFER, m_RendererID));// How do I want to use the GL Buffer? Define it to a specific buffer:
 														//	target - GL_ARRAY_BUFFER: it's just an array
@@ -32,7 +32,7 @@ void VertexBuffer::bind()
 
 }
 
-void VertexBuffer::unbind()
+void VertexBuffer::unbind() const
 {
 	GLCall(glBindBuffer(GL_ARRAY_BUFFER, 0));		// How do I want to use the GL Buffer? Define it to a specific buffer:
 													//	target - GL_ARRAY_BUFFER: it's just an array
